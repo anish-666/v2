@@ -1,6 +1,5 @@
 
 import { useEffect, useMemo, useState } from "react";
-import "./index.css";
 
 type Call = {
   id: string;
@@ -44,24 +43,24 @@ export default function App() {
   }, [calls]);
 
   return (
-    <div className="app">
+    <div style={{ padding: 32, fontFamily: "system-ui", background: "#fafafa" }}>
       <h1>Call Analytics Dashboard</h1>
-      <p className="subtitle">Calls, recordings & transcripts</p>
+      <p style={{ color: "#666" }}>Calls, recordings & transcripts</p>
 
-      <div className="kpis">
+      <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
         <KPI label="Total Calls" value={stats.total} />
         <KPI label="Completed" value={stats.completed} />
         <KPI label="Missed" value={stats.missed} />
         <KPI label="Avg Duration (s)" value={Math.round(stats.avg)} />
       </div>
 
-      <table className="table">
+      <table width="100%" cellPadding={12} style={{ background: "#fff" }}>
         <thead>
           <tr>
-            <th>Time</th>
-            <th>User</th>
-            <th>Status</th>
-            <th>Duration</th>
+            <th align="left">Time</th>
+            <th align="left">User</th>
+            <th align="left">Status</th>
+            <th align="left">Duration</th>
             <th />
           </tr>
         </thead>
@@ -70,11 +69,7 @@ export default function App() {
             <tr key={c.id}>
               <td>{new Date(c.created_at).toLocaleString()}</td>
               <td>{c.user_number}</td>
-              <td>
-                <span className={`status ${c.status}`}>
-                  {c.status}
-                </span>
-              </td>
+              <td>{c.status}</td>
               <td>{c.duration}s</td>
               <td>
                 <button onClick={() => setSelected(c)}>View</button>
@@ -85,24 +80,35 @@ export default function App() {
       </table>
 
       {selected && (
-        <aside className="side">
+        <div
+          style={{
+            position: "fixed",
+            right: 0,
+            top: 0,
+            width: 420,
+            height: "100%",
+            background: "#fff",
+            padding: 20,
+            borderLeft: "1px solid #ddd",
+            overflow: "auto"
+          }}
+        >
           <h3>Call Details</h3>
-
           <p><b>User:</b> {selected.user_number}</p>
           <p><b>Status:</b> {selected.status}</p>
-          <p className="summary">{selected.summary}</p>
+          <p>{selected.summary}</p>
 
           {selected.recording_url && (
-            <audio controls src={selected.recording_url} />
+            <audio controls src={selected.recording_url} style={{ width: "100%" }} />
           )}
 
           <h4>Transcript</h4>
-          <pre>{selected.transcript}</pre>
+          <pre style={{ background: "#f4f4f4", padding: 12 }}>
+            {selected.transcript}
+          </pre>
 
-          <button className="close" onClick={() => setSelected(null)}>
-            Close
-          </button>
-        </aside>
+          <button onClick={() => setSelected(null)}>Close</button>
+        </div>
       )}
     </div>
   );
@@ -110,9 +116,17 @@ export default function App() {
 
 function KPI({ label, value }: any) {
   return (
-    <div className="kpi">
-      <div className="kpi-label">{label}</div>
-      <div className="kpi-value">{value}</div>
+    <div
+      style={{
+        background: "#fff",
+        padding: 16,
+        borderRadius: 8,
+        border: "1px solid #ddd",
+        minWidth: 160
+      }}
+    >
+      <div style={{ fontSize: 12, color: "#666" }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 600 }}>{value}</div>
     </div>
   );
 }
