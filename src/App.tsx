@@ -1,12 +1,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-/**
- * Robust CSV parser that handles:
- * - quoted fields
- * - commas inside transcript/summary
- * - newlines inside transcript
- */
+/* ---------- CSV PARSER ---------- */
 function parseCSV(text: string) {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -64,31 +59,24 @@ export default function App() {
       .then(r => r.text())
       .then(text => {
         const [header, ...data] = parseCSV(text);
-        const calls = data.map(row => {
+        const parsed = data.map(row => {
           const obj: any = {};
           header.forEach((h, i) => (obj[h] = row[i] || ""));
-          return {
-            ...obj,
-            duration: Number(obj.duration || 0)
-          };
+          return { ...obj, duration: Number(obj.duration || 0) };
         });
-        setCalls(calls);
+        setCalls(parsed);
       });
   }, []);
 
   const stats = useMemo(() => {
     const total = calls.length;
     const completed = calls.filter(c => c.status === "completed").length;
+    const dropped = calls.filter(c => c.status === "dropped").length;
     const missed = calls.filter(c => c.status === "no-answer").length;
-    const avg =
-      completed === 0
-        ? 0
-        : calls
-            .filter(c => c.status === "completed")
-            .reduce((a, b) => a + b.duration, 0) / completed;
-
-    return { total, completed, missed, avg };
+    return { total, completed, dropped, missed };
   }, [calls]);
+
+  const max = Math.max(stats.completed, stats.dropped, stats.missed);
 
   return (
     <div style={{ padding: 32, fontFamily: "Inter, system-ui", background: "#f8fafc" }}>
@@ -97,14 +85,45 @@ export default function App() {
         Calls, recordings & transcripts
       </p>
 
+      {/* KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
         <KPI label="Total Calls" value={stats.total} />
         <KPI label="Completed" value={stats.completed} />
+        <KPI label="Dropped" value={stats.dropped} />
         <KPI label="Missed" value={stats.missed} />
-        <KPI label="Avg Duration (s)" value={Math.round(stats.avg)} />
       </div>
 
-      <div style={{ marginTop: 32, background: "#fff", borderRadius: 12, overflow: "hidden" }}>
+      {/* SIMPLE BAR CHART */}
+      <div style={{ marginTop: 32, background: "#fff", padding: 20, borderRadius: 12 }}>
+        <h3 style={{ marginBottom: 12 }}>Call Status Distribution</h3>
+        {["completed", "dropped", "no-answer"].map(s => {
+          const value =
+            s === "completed" ? stats.completed :
+            s === "dropped" ? stats.dropped :
+            stats.missed;
+          return (
+            <div key={s} style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 12, marginBottom: 4 }}>{s}</div>
+              <div style={{ background: "#e5e7eb", borderRadius: 6 }}>
+                <div
+                  style={{
+                    width: `${(value / max) * 100 || 0}%`,
+                    height: 10,
+                    background:
+                      s === "completed" ? "#22c55e" :
+                      s === "dropped" ? "#ef4444" :
+                      "#facc15",
+                    borderRadius: 6
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* TABLE */}
+      <div style={{ marginTop: 32, background: "#fff", borderRadius: 12 }}>
         <table width="100%" cellPadding={14}>
           <thead style={{ background: "#f1f5f9" }}>
             <tr>
@@ -118,26 +137,18 @@ export default function App() {
           <tbody>
             {calls.map(c => (
               <tr key={c.id} style={{ borderBottom: "1px solid #e5e7eb" }}>
-                <td>
-                  {c.created_at
-                    ? new Date(c.created_at).toLocaleString()
-                    : "-"}
-                </td>
+                <td>{new Date(c.created_at).toLocaleString()}</td>
                 <td>+{c.user_number}</td>
                 <td>
-                  <span
-                    style={{
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                      fontSize: 12,
-                      background:
-                        c.status === "completed"
-                          ? "#dcfce7"
-                          : c.status === "no-answer"
-                          ? "#fef3c7"
-                          : "#fee2e2",
-                    }}
-                  >
+                  <span style={{
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    fontSize: 12,
+                    background:
+                      c.status === "completed" ? "#dcfce7" :
+                      c.status === "no-answer" ? "#fef3c7" :
+                      "#fee2e2"
+                  }}>
                     {c.status}
                   </span>
                 </td>
@@ -151,46 +162,58 @@ export default function App() {
         </table>
       </div>
 
+      {/* DRAWER */}
       {selected && (
         <div
           style={{
             position: "fixed",
             right: 0,
             top: 0,
-            width: 460,
+            width: 480,
             height: "100%",
             background: "#fff",
             padding: 24,
-            boxShadow: "-4px 0 16px rgba(0,0,0,0.1)",
+            boxShadow: "-4px 0 16px rgba(0,0,0,0.15)",
             overflow: "auto"
           }}
         >
-          <h3 style={{ marginBottom: 8 }}>Call Details</h3>
+          <button
+            onClick={() => setSelected(null)}
+            style={{
+              position: "absolute",
+              top: 16,
+              right: 16,
+              fontSize: 18,
+              background: "transparent",
+              border: "none",
+              cursor: "pointer"
+            }}
+          >
+            ✕
+          </button>
+
+          <h3>Call Details</h3>
           <p style={{ color: "#64748b" }}>{selected.summary}</p>
 
           {selected.recording_url && (
-            <audio
-              controls
-              src={selected.recording_url}
-              style={{ width: "100%", margin: "16px 0" }}
-            />
+            <audio controls src={selected.recording_url} style={{ width: "100%", margin: "16px 0" }} />
           )}
 
           <h4>Transcript</h4>
-          <pre
-            style={{
-              whiteSpace: "pre-wrap",
-              background: "#f8fafc",
-              padding: 12,
-              borderRadius: 8
-            }}
-          >
-            {selected.transcript || "No transcript available"}
-          </pre>
-
-          <button style={{ marginTop: 16 }} onClick={() => setSelected(null)}>
-            Close
-          </button>
+          <div style={{ background: "#f8fafc", padding: 12, borderRadius: 8 }}>
+            {selected.transcript
+              .split("\n")
+              .map((line, i) => (
+                <p key={i} style={{ margin: "6px 0" }}>
+                  {line.startsWith("assistant")
+                    ? <b>Assistant:</b>
+                    : line.startsWith("user")
+                    ? <b>User:</b>
+                    : null}{" "}
+                  {line.replace(/^(assistant|user):?/i, "")}
+                </p>
+              ))}
+          </div>
         </div>
       )}
     </div>
@@ -199,14 +222,7 @@ export default function App() {
 
 function KPI({ label, value }: any) {
   return (
-    <div
-      style={{
-        background: "#fff",
-        padding: 20,
-        borderRadius: 12,
-        border: "1px solid #e5e7eb"
-      }}
-    >
+    <div style={{ background: "#fff", padding: 20, borderRadius: 12, border: "1px solid #e5e7eb" }}>
       <div style={{ fontSize: 13, color: "#64748b" }}>{label}</div>
       <div style={{ fontSize: 24, fontWeight: 600 }}>{value}</div>
     </div>
